@@ -1,103 +1,98 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const { resolve } = require('path');
 
 const app = express();
-const port = 3010;
+const port = 5000;
 
+// Sample book data
+let books = [
+    {
+        book_id: "101",
+        title: "The Great Gatsby",
+        author: "F. Scott Fitzgerald",
+        genre: "Fiction",
+        year: 1925,
+        copies: 5
+    },
+    {
+        book_id: "102",
+        title: "1984",
+        author: "George Orwell",
+        genre: "Dystopian",
+        year: 1949,
+        copies: 3
+    }
+];
+
+// Middleware to parse JSON request bodies
 app.use(express.json());
 
-// Load book data from data.json
-let booksData = JSON.parse(fs.readFileSync('data.json', 'utf8'));
+// Serve static files
+app.use(express.static('static'));
 
-
-// ✅ Get all books
-app.get('/books', (req, res) => {
-    res.json({ count: booksData.length, books: booksData });
+// Serve the main page
+app.get('/', (req, res) => {
+    res.sendFile(resolve(__dirname, 'pages/index.html'));
 });
 
-// ✅ Get a book by ID
+// Create a new book
+app.post('/books', (req, res) => {
+    const { book_id, title, author, genre, year, copies } = req.body;
+
+    // Input validation
+    if (!book_id || !title || !author || !genre || !year || !copies) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    const newBook = { book_id, title, author, genre, year, copies };
+    books.push(newBook);
+    res.status(201).json(newBook);
+});
+
+// Retrieve all books
+app.get('/books', (req, res) => {
+    res.json(books);
+});
+
+// Retrieve a specific book by ID
 app.get('/books/:id', (req, res) => {
-    const book = booksData.find(b => b.book_id === req.params.id);
+    const book = books.find(b => b.book_id === req.params.id);
     if (!book) {
-        return res.status(404).json({ message: "Book not found" });
+        return res.status(404).json({ error: 'Book not found.' });
     }
     res.json(book);
 });
 
-
-// ✅ Add a new book
-app.post('/books/add', (req, res) => {
-    const { book_id, title, author, genre, year, copies } = req.body;
-
-    if (!book_id || !title || !author || !genre || !year || !copies) {
-        return res.status(400).json({ message: "Missing required fields: book_id, title, author, genre, year, copies" });
+// Update book information
+app.put('/books/:id', (req, res) => {
+    const book = books.find(b => b.book_id === req.params.id);
+    if (!book) {
+        return res.status(404).json({ error: 'Book not found.' });
     }
 
-    const newBook = { book_id, title, author, genre, year, copies };
-    booksData.push(newBook);
+    // Update book details
+    const { title, author, genre, year, copies } = req.body;
+    if (title) book.title = title;
+    if (author) book.author = author;
+    if (genre) book.genre = genre;
+    if (year) book.year = year;
+    if (copies) book.copies = copies;
 
-    fs.writeFileSync('data.json', JSON.stringify(booksData, null, 2));
-
-    res.status(201).json({ message: "Book added successfully", book: newBook });
+    res.json(book);
 });
 
-
-
-// ✅ Get books published after a certain year
-app.post('/books/after-year', (req, res) => {
-    const { year } = req.body;
-
-    if (typeof year !== 'number' || isNaN(year)) {
-        return res.status(400).json({ message: "Invalid year. Please provide a valid number." });
-    }
-
-    const filteredBooks = booksData.filter(book => book.year > year);
-
-    res.json({
-        count: filteredBooks.length,
-        books: filteredBooks.map(book => ({
-            title: book.title,
-            author: book.author,
-            year: book.year
-        }))
-    });
-});
-
-
-
-// ✅ DELETE a book by ID
+// Delete a book
 app.delete('/books/:id', (req, res) => {
-  const bookId = req.params.id;
-  
-  // Find the book
-  const bookIndex = booksData.findIndex(b => b.book_id === bookId);
-  
-  if (bookIndex === -1) {
-      return res.status(404).json({ message: "Book not found" });
-  }
+    const bookIndex = books.findIndex(b => b.book_id === req.params.id);
+    if (bookIndex === -1) {
+        return res.status(404).json({ error: 'Book not found.' });
+    }
 
-  // Remove the book
-  const deletedBook = booksData.splice(bookIndex, 1);
-
-  // Save the updated list to data.json
-  fs.writeFileSync('data.json', JSON.stringify(booksData, null, 2));
-
-  res.json({ message: "Book deleted successfully", book: deletedBook[0] });
+    books.splice(bookIndex, 1);
+    res.json({ message: 'Book deleted successfully.' });
 });
 
-
-
-
-// ✅ Serve static files (for future use)
-app.use(express.static('static'));
-
-// ✅ Serve homepage
-app.get('/', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'pages/index.html'));
-});
-
-// ✅ Start the server
+// Start the server
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Library Management System API listening at http://localhost:${port}`);
 });
