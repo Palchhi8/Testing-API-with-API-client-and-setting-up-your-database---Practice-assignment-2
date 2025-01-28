@@ -2,7 +2,7 @@ const express = require('express');
 const { resolve } = require('path');
 
 const app = express();
-const port = 5000;
+const port = 3000;
 
 // Sample book data
 let books = [
